@@ -46,7 +46,7 @@ typedef struct Vertice
 /*Nome do arquivo a ser lido*/
 #define NOME_ARQUIVO "disciplinas.txt"
 /*define quantos caracteres tem a matricula*/
-#define TAM_CARAC_MAT 6
+#define TAM_MATRICULA 6
 
 /*CABECALHO DE FUNCOES*/
 int povoaLista (Vertice **);
@@ -89,6 +89,21 @@ int main () {
     /*declara vetor de ponteiros para Vertice*/
     Vertice *lista = NULL;
 
+    povoaLista(&lista);
+
+    Vertice *cursor = lista;
+    Adj *cursorAdj = cursor->adj;
+
+    while(cursor!=NULL) {
+    	printf("%d", cursor->id);
+    	cursorAdj = cursor->adj;
+    	while(cursorAdj!= NULL) {
+    		printf("->%d", cursorAdj->id);
+    		cursorAdj = cursorAdj->prox;
+    	}
+    	printf("\n");
+    	cursor = cursor->prox;
+    }
         
     printf("\nFIM DO PROGRAMA\n");
     /*desaloca a memoria utilizada* /
@@ -148,15 +163,13 @@ void popAdj(Adj **inicio, int id) {
 
 void liberaAdj(Adj **inicio) {
 	Adj *cursorProx = (*inicio)->prox;
-
+	/*percorre a lista enquanto desaloca*/
 	while(*inicio != NULL) {
 		cursorProx = (*inicio)->prox;
 		free(*inicio);
 		*inicio = cursorProx;
 
 	}
-	free(cursor);
-	*inicio = NULL;
 
 
 }
@@ -263,11 +276,11 @@ int povoaLista(Vertice **lista) {
 
     */
     /*
-    no for, primeira condicao de saida verifica se houve erro
+    no for, primeira condicao de saida para caso ocorra algum problema, exista um limite
     segunda condicao se ja leu todos os alunos registrados
     terceira se chegou no final do arquivo
     */
-    for(i = 0;(i < NUM_ALUNOS) && fgets(linhaAtual, TAM_LINHA, arquivo) != NULL; i++) {
+    for(i = 0;i<200 && fgets(linhaAtual, TAM_LINHA, arquivo) != NULL; i++) {
     
 		offsetLinha = 0;
 
@@ -275,17 +288,17 @@ int povoaLista(Vertice **lista) {
 
         /*le o id da disciplina*/
 
-		sscanf(linhaAtual, "%d", idMatricula);
+		sscanf(linhaAtual, "%d#", &idMatricula);
 
 		pushVertice(lista, idMatricula);
         /*calcula o novo offset, dado que foi lido nome e matricula*/
 
 
-
-        offsetLinha = TAM_CARAC_MAT + 1;
+		/*aumenta offset da string para andar ate o proximo valor. 1 referente ao divisor #*/
+        offsetLinha = TAM_MATRICULA + 1;
 
         /*Le os adjacentes, e sai povoando a lista de adjacencia*/
-        while(sscanf(&linhaAtual[offsetLinha],"%d#", idAdj) == 1) {
+        while(sscanf(&linhaAtual[offsetLinha],"%d#", &idAdj) == 1) {
 	           /*Coloca o novo vertice no inicio da lista de adj*/
 	           pushAdj(&((*lista)->adj), idAdj);
 
@@ -293,7 +306,7 @@ int povoaLista(Vertice **lista) {
 	           if(linhaAtual[offsetLinha + 1] == '\0') {
 	           		break;
 	           }
-	           offsetLinha += TAM_CARAC_MAT + 1;
+	           offsetLinha += TAM_MATRICULA + 1;
         }
 
 
