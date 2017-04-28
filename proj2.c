@@ -32,8 +32,11 @@ typedef struct Adj
 typedef struct Vertice
 {
     int id;
-    int qtdInc;
+    int qtdIncidentes;
+    int creditos;
+    float dificuldade;
     struct Vertice *prox;
+
     struct Adj *adj;
 
 } Vertice;
@@ -54,15 +57,15 @@ int povoaLista (Vertice **);
 /*Funcoes de push e pop de adjacentes de vertice*/
 void pushAdj(Adj **, int);
 void popAdj(Adj **, int);
-void liberaAdj(Adj **);
+void liberaListaAdj(Adj **);
 
 /*Funcoes de push e pop de vertices*/
 void pushVertice(Vertice **, int);
 void popVertice(Vertice **, int);
-void liberaVertice(Vertice **);
+void liberaListaVertice(Vertice **);
 
 /*funcoes de lista*/
-void liberaLista(Vertice **);
+void imprimeLista(Vertice *);
 
 /*
 ESTRUTURA DE DADOS UTILIZADA:
@@ -91,11 +94,22 @@ int main () {
 
     povoaLista(&lista);
 
+
+    imprimeLista(lista);
+    printf("\nFIM DO PROGRAMA\n");
+    /*desaloca a memoria utilizada*/
+    liberaListaVertice(&lista);
+    return 0;
+
+}
+
+void imprimeLista(Vertice *lista){
+
     Vertice *cursor = lista;
     Adj *cursorAdj = cursor->adj;
 
     while(cursor!=NULL) {
-    	printf("%d", cursor->id);
+    	printf("%d(kr=%d)(dif:%.1f)", cursor->id, cursor->creditos, cursor->dificuldade);
     	cursorAdj = cursor->adj;
     	while(cursorAdj!= NULL) {
     		printf("->%d", cursorAdj->id);
@@ -104,11 +118,6 @@ int main () {
     	printf("\n");
     	cursor = cursor->prox;
     }
-        
-    printf("\nFIM DO PROGRAMA\n");
-    /*desaloca a memoria utilizada* /
-    liberaCabeca(lista);*/
-    return 0;
 
 }
 
@@ -157,21 +166,20 @@ void popAdj(Adj **inicio, int id) {
     	cursor = cursorProx;
     	cursorProx = cursorProx->prox;
     }
-   
-
+    /*como o while acima chama return qdo encontra, 
+    esta linha so sera executada se sair do loop 
+    por "== null", logo pode-se assumir que nao encontrou*/
+    printf("\nATENCAO:POPADJ CHAMADO MAS ELEM NAO ENCONTRADO\n");
 }
 
-void liberaAdj(Adj **inicio) {
-	Adj *cursorProx = (*inicio)->prox;
+void liberaListaAdj(Adj **inicio) {
+	Adj *cursorProx = NULL;
 	/*percorre a lista enquanto desaloca*/
 	while(*inicio != NULL) {
 		cursorProx = (*inicio)->prox;
 		free(*inicio);
 		*inicio = cursorProx;
-
 	}
-
-
 }
 
 void pushVertice(Vertice **inicio, int id) {
@@ -182,7 +190,7 @@ void pushVertice(Vertice **inicio, int id) {
     /*coloca valor do id e inicia os outros campos*/
     verticeNovo->id = id;
     verticeNovo->adj = NULL;
-    verticeNovo->qtdInc = 0;
+    verticeNovo->qtdIncidentes = 0;
     /*faz novo vertice apontar para o inicio da lista de vertice*/
     verticeNovo->prox = *inicio;
     /*atualiza o valor do inicio da lista*/
@@ -219,32 +227,30 @@ void popVertice(Vertice **inicio, int id) {
     	cursor = cursorProx;
     	cursorProx = cursorProx->prox;
     }
+    /*como o while acima chama return qdo encontra, 
+    esta linha so sera executada se sair do loop 
+    por "== null", logo pode-se assumir que nao encontrou*/
+    printf("\nATENCAO:POPVERTICE CHAMADO MAS ELEM NAO ENCONTRADO\n");
    
 
 }
 
-void liberaVertice(Vertice **inicio) {
+void liberaListaVertice(Vertice **inicio) {
+
+	if(*inicio == NULL) {
+		return;
+	}
 
     Vertice *cursorProx = (*inicio)->prox;
 
     while(*inicio != NULL) {
     	cursorProx = (*inicio)->prox;
+    	/*libera sua lista de adjacencia antes*/
+		liberaListaAdj(&(*inicio)->adj);
         free(*inicio);
         *inicio = cursorProx;
     }
 
-}
-
-void liberaLista(Vertice **lista){
-
-	Vertice *cursorProx = (*lista)->prox;
-
-	while(*lista != NULL) {
-		cursorProx = (*lista)->prox;
-		liberaAdj(&((*lista)->adj));
-		free(*lista);
-		*lista = cursorProx;
-	}
 }
 
 /*Percorre o arquivo alunos.txt e povoa a lista de adjacencia*/
@@ -291,11 +297,18 @@ int povoaLista(Vertice **lista) {
 		sscanf(linhaAtual, "%d#", &idMatricula);
 
 		pushVertice(lista, idMatricula);
-        /*calcula o novo offset, dado que foi lido nome e matricula*/
-
 
 		/*aumenta offset da string para andar ate o proximo valor. 1 referente ao divisor #*/
         offsetLinha = TAM_MATRICULA + 1;
+        /*Le a qtd de creditos*/
+        sscanf(linhaAtual + offsetLinha, "%d#", &(*lista)->creditos);
+        offsetLinha += 2;
+        /*le a dificuldade*/
+        sscanf(linhaAtual + offsetLinha, "%f#", &(*lista)->dificuldade);
+        offsetLinha += 4;
+        /*inicializa a variavel de qtd de incidentes*/
+        (*lista)->qtdIncidentes = 0;
+
 
         /*Le os adjacentes, e sai povoando a lista de adjacencia*/
         while(sscanf(&linhaAtual[offsetLinha],"%d#", &idAdj) == 1) {
