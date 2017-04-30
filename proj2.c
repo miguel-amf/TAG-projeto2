@@ -43,7 +43,7 @@ typedef struct Vertice
 /*lista de caminhos, caminhos eh uma sequencia de Vertices*/
 typedef struct Caminhos
 {
-	struct Vertice *caminho;
+	struct Vertice *vertices;
 	float dificuldadeCaminho;
 	struct Caminhos *prox;
 
@@ -79,6 +79,7 @@ Vertice *copiaLista(Vertice *);
 void atualizaIncidentes(Vertice *);
 Vertice *organizacaoTopologica(Vertice *);
 Vertice *listaAdjacenciaParaIncidencia(Vertice *);
+Vertice *caminhoCritico(Vertice *);
 
 /*
 ESTRUTURA DE DADOS UTILIZADA:
@@ -97,7 +98,6 @@ LISTA DE VERTICES     LISTA ADJACENCIA
 /*FUNCAO MAIN*/
 int main () {
 
-
     /*declara o ponteiro para Vertice cabeca da lista*/
     Vertice *lista = NULL;
 
@@ -112,28 +112,33 @@ int main () {
 
     Vertice *topologico = organizacaoTopologica(listaCopia);
 
-    Vertice *listaIncidencia = listaAdjacenciaParaIncidencia(lista);
-
-
-
-
+    Vertice *cCritico = caminhoCritico(lista);
 
 
 
     /*ETAPA DE APRESENTACAO DOS RESULTADOS*/
     imprimeLista(lista); /*imprime na saida padrao o TAD para o grafo*/
-    printf("\n\n");
-    imprimeLista(listaIncidencia);
     printf("\nOrganizacaoTopologica: ");
     Vertice *cursorTopologico = topologico;
     while(cursorTopologico != NULL) {
     	printf("->%d", cursorTopologico->id);
     	cursorTopologico = cursorTopologico->prox;
     }
+    printf("\nCAMINHO CRITICO: (dificuldade: %f)\n", cCritico->dificuldade);
+    Vertice *cursorCaminhoCritico = cCritico;
+    while(cursorCaminhoCritico != NULL) {
+    	printf("->%d", cursorCaminhoCritico->id);
+    	cursorCaminhoCritico = cursorCaminhoCritico->prox;
+    }
     
 
     /*ETAPA DE FINALIZACAO DO PROGRAMA*/
     liberaListaVertice(&lista);     /*desaloca a memoria utilizada para Vertice *lista*/
+    liberaListaVertice(&listaCopia);
+    liberaListaVertice(&topologico);
+    liberaListaVertice(&cCritico);
+
+
 
     printf("\nFIM DO PROGRAMA\n");
     return 0;
@@ -147,21 +152,176 @@ Vertice *caminhoCritico(Vertice *entrada) {
 	Caminhos *caminhos = NULL;
 	Caminhos *caminhosFinalizados = NULL; /*caminhos finalizados armazena os caminhos que chegaram ao final*/
 	Vertice *caminhoCritico = NULL;
-
 	Vertice *cursor = entrada;
+	float maiorValor = 0;
 	/*coloca todos os vertices sem incidencia como possiveis caminhos*/
+
 	while(cursor != NULL) {
 		if(cursor->qtdIncidentes ==  0) {
 			if(caminhos == NULL ) {
 				caminhos = malloc(sizeof(Caminhos));
 				caminhos->prox = NULL;
 				caminhos->dificuldadeCaminho = cursor->creditos*cursor->dificuldade;
-				pushVerticeNoFinal(&caminhos->caminho, cursor->id);
+				pushVertice(&caminhos->vertices, cursor->id);
+				caminhos->vertices->dificuldade = cursor->dificuldade;
+				caminhos->vertices->creditos = cursor->creditos;
 			} else {
-				Vertice *aux = caminhos;
-				
+				Caminhos *aux = caminhos;
+				caminhos = malloc(sizeof(Caminhos));
+				pushVertice(&caminhos->vertices, cursor->id);
+				caminhos->vertices->dificuldade = cursor->dificuldade;
+				caminhos->vertices->creditos = cursor->creditos;
+				caminhos->dificuldadeCaminho = cursor->creditos*cursor->dificuldade;
+				caminhos->prox = aux;
 			}
 		}
+		cursor = cursor->prox;
+	}
+	/*em caminhos agora existe uma lista de lista de vertice
+	cada lista de vertice representa um caminho
+	neste momento existem apenas caminhos incompletos, com 
+	apenas um vertice, sendo estes vertices aqueles que nao tem incidencia,
+	ou seja, sao disciplinas sem pre-requisitos
+
+	a partir de cada um destes, vao sendo criados diversos outros caminhos,
+	contendo todas as ramificacoes possiveis a partir deles
+	cada caminho contem na cabeca a dificuldade
+	essa dificuldade eh o somatorio das arestas entre os vertices
+
+	agora, o algoritmo vai testar todas as possiveis ramificacoes de cada caminho
+	para isso, vai criar copias de cada caminho ja existente
+	cada copia sera o caminho original mais um adjacente do ultimo elemento dos vertices
+	sera feito para todas as adjacencias
+	quando nao houver mais adjacentes, o caminho pai eh removido da lista, ficando apenas os
+	filhos que sao o pai + um adjancente do caminho
+	quando um caminho nao tem mais filhos possiveis, ele eh removido da lista e colocado na lista
+	de caminhosFinalizados
+
+	apos descobrir cada um dos caminhos possiveis, vera qual o caminho mais longo, colocara em 
+	caminhoCritico e retornara para a funcao chamadora*/
+
+	while(caminhos != NULL) {
+		/*
+		Caminhos *auxDebug = caminhos;
+		while(auxDebug != NULL){
+			printf("\nCaminho dif: %f, com vertices:\n", auxDebug->dificuldadeCaminho);
+			Vertice *auxVerticeDebug = auxDebug->vertices;
+			while(auxVerticeDebug!= NULL) {
+				printf("->%d", auxVerticeDebug->id);
+				auxVerticeDebug = auxVerticeDebug->prox;
+			}
+			auxDebug = auxDebug->prox;
+		}
+		auxDebug = caminhosFinalizados;
+		while(auxDebug!= NULL){
+			printf("\nCaminhoFinalizados dif: %f, com vertices:\n", auxDebug->dificuldadeCaminho);
+			Vertice *auxVerticeDebug = auxDebug->vertices;
+			while(auxVerticeDebug!= NULL) {
+				printf("->%d", auxVerticeDebug->id);
+				auxVerticeDebug = auxVerticeDebug->prox;
+			}
+			auxDebug = auxDebug->prox;
+		}
+		printf("\n\n\n");*/
+		Caminhos *caminhoVigente = caminhos;
+		Vertice *listaVertices = caminhoVigente->vertices;
+		/*procura o ultimo elemento do caminho*/
+		while(listaVertices->prox != NULL) {
+			listaVertices = listaVertices->prox;
+		}
+		int idUltimoElemento = listaVertices->id;
+		/*procura na lista da entrada pelo id encontrado,
+		a fim de encontrar suas adjacencias*/
+		Vertice *ultimoVertice = entrada;
+		Adj *cursorAdjDoUltimoElemento = NULL;
+		while(ultimoVertice!= NULL) {
+			if(ultimoVertice->id == idUltimoElemento) {
+				break;
+			}
+			ultimoVertice = ultimoVertice->prox;
+		}
+		cursorAdjDoUltimoElemento = ultimoVertice->adj;
+
+		/*percorre a lista de adjacencias
+		se ela for nula, quer dizer que o caminho chegou ao
+		fim. caso contrario, coloca os caminhos filhos na lista*/
+		if(cursorAdjDoUltimoElemento == NULL) {
+			
+			/*caminho sem mais filhos, coloca em caminhosFinalizados*/
+			Caminhos *aux = caminhosFinalizados;
+			caminhosFinalizados = malloc(sizeof(Caminhos));
+			caminhosFinalizados->vertices = copiaLista(caminhoVigente->vertices);
+			caminhosFinalizados->dificuldadeCaminho = caminhoVigente->dificuldadeCaminho;
+			caminhosFinalizados->prox = aux;
+
+
+		} else {
+			/*cria novos caminhos com adjacentes e coloca no
+			inicio de caminhos*/
+			while(cursorAdjDoUltimoElemento!= NULL) {
+
+				/*cria novo caminhii*/
+				Caminhos *caminhoNovo = malloc(sizeof(Caminhos));
+				/*prepara a lista de vertices para o novo caminho*/
+				Vertice *verticesNovo = copiaLista(caminhoVigente->vertices);
+				pushVerticeNoFinal(&verticesNovo, cursorAdjDoUltimoElemento->id);
+				/*atribui a nova lista de vertices no novo caminho*/
+				caminhoNovo->vertices = verticesNovo;
+
+				/*calcula a nova dificuldade*/
+				caminhoNovo->dificuldadeCaminho = caminhos->dificuldadeCaminho + ultimoVertice->dificuldade;
+
+				/*agora coloca o caminho no final da lista de caminhos*/
+				Caminhos *cursorCaminhos = caminhos;
+				while(cursorCaminhos->prox != NULL) {
+					cursorCaminhos = cursorCaminhos->prox;
+				}
+				cursorCaminhos->prox = caminhoNovo;
+				caminhoNovo->prox = NULL;
+
+
+				cursorAdjDoUltimoElemento = cursorAdjDoUltimoElemento->prox;
+			}
+		}
+		Caminhos *auxFree = caminhos;
+		caminhos = caminhos->prox;
+		liberaListaVertice(&auxFree->vertices);
+		free(auxFree);	
+	
+	}
+
+
+	Caminhos *auxDebug = caminhosFinalizados;
+	while(auxDebug!= NULL){
+		printf("\n(%f):", auxDebug->dificuldadeCaminho);
+		Vertice *auxVerticeDebug = auxDebug->vertices;
+		while(auxVerticeDebug!= NULL) {
+			printf("->%d", auxVerticeDebug->id);
+			auxVerticeDebug = auxVerticeDebug->prox;
+		}
+		auxDebug = auxDebug->prox;
+	}
+
+
+	Caminhos *cursorCaminhosFinalizados = caminhosFinalizados;
+	while(cursorCaminhosFinalizados != NULL) {
+		if(cursorCaminhosFinalizados->dificuldadeCaminho > maiorValor) {
+			printf("Trocando %f por %f\n", cursorCaminhosFinalizados->dificuldadeCaminho, maiorValor);
+			caminhoCritico = cursorCaminhosFinalizados->vertices;
+			maiorValor = cursorCaminhosFinalizados->dificuldadeCaminho;
+		}
+		cursorCaminhosFinalizados = cursorCaminhosFinalizados->prox;
+	}
+	/*cria uma copia propria, pois caminhoCritico aponta para um elemento de caminhosFinalizados
+	caso contrario durante o free de caminhosFinalizados haveria ponteiro para memoria desalocada*/
+	caminhoCritico = copiaLista(caminhoCritico);
+	caminhoCritico->dificuldade = maiorValor;
+
+	while(caminhosFinalizados!=NULL) {
+		Caminhos *auxFree = caminhosFinalizados->prox;
+		liberaListaVertice(&caminhosFinalizados->vertices);
+		free(caminhosFinalizados);
+		caminhosFinalizados = auxFree;
 	}
 
 	return caminhoCritico;
