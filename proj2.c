@@ -32,11 +32,10 @@ typedef struct Adj
 typedef struct Vertice
 {
     int id;
-    int qtdIncidentes;
+    int qtdIncidentes; /*para facilitar o kahn*/
     int creditos;
     float dificuldade;
     struct Vertice *prox;
-
     struct Adj *adj;
 
 } Vertice;
@@ -66,10 +65,12 @@ void liberaListaVertice(Vertice **);
 
 /*funcoes de lista*/
 void imprimeLista(Vertice *);
+Vertice *copiaLista(Vertice *);
+void atualizaIncidentes(Vertice *);
 
 /*
 ESTRUTURA DE DADOS UTILIZADA:
-LISTA DE ADJACENCIA COM LISTA DE INCIDENCIA 
+LISTA DE DISCIPLINAS COM LISTA DE ADJACENCIA
 EXEMPLO:
 LISTA DE VERTICES     LISTA ADJACENCIA
     113784				->112345->115432->119876->NULL
@@ -79,27 +80,37 @@ LISTA DE VERTICES     LISTA ADJACENCIA
     ||
     \/
     NULL
-    
-A UTILIZACAO DE UM VETOR FOI ESCOLHIDA PARA PROMOVER MELHOR DESEMPENHO 
-NOS ACESSOS A LISTA, POIS O ID CONTIDO EM CADA NO PODE SER UTILIZADO PARA
-UM ACESSO DIRETO, SEM NECESSIDADE DE PERCORRER TODA A LISTA PARA ENCONTRA-LO
 */
 
 /*FUNCAO MAIN*/
 int main () {
 
 
-    /*declara vetor de ponteiros para Vertice*/
+    /*declara o ponteiro para Vertice cabeca da lista*/
     Vertice *lista = NULL;
 
-    povoaLista(&lista);
+    /*ETAPA DE COLETA DE DADOS*/
+    povoaLista(&lista); /*Le o arquivo e prepara corretamente o TAD*/
+	atualizaIncidentes(lista); /*com a lista pronta, eh possivel contar as incidencias em cada vertice*/
+
+    /*ETAPA DE MANIPULACAO DE DADOS*/
+    Vertice *listaCopia = copiaLista(lista);
 
 
-    imprimeLista(lista);
+    /*ETAPA DE APRESENTACAO DOS RESULTADOS*/
+    imprimeLista(lista); /*imprime na saida padrao o TAD para o grafo*/
+    
+
+    /*ETAPA DE FINALIZACAO DO PROGRAMA*/
+    liberaListaVertice(&lista);     /*desaloca a memoria utilizada para Vertice *lista*/
+
     printf("\nFIM DO PROGRAMA\n");
-    /*desaloca a memoria utilizada*/
-    liberaListaVertice(&lista);
     return 0;
+
+}
+
+void organizacaoTopologica(Vertice *lista) {
+
 
 }
 
@@ -109,7 +120,10 @@ void imprimeLista(Vertice *lista){
     Adj *cursorAdj = cursor->adj;
 
     while(cursor!=NULL) {
-    	printf("%d(kr=%d)(dif:%.1f)", cursor->id, cursor->creditos, cursor->dificuldade);
+    	printf("%d(cr=%d)(dif:%.1f)(inc=%d)", 	cursor->id, 
+    											cursor->creditos, 
+    											cursor->dificuldade,
+    											cursor->qtdIncidentes);
     	cursorAdj = cursor->adj;
     	while(cursorAdj!= NULL) {
     		printf("->%d", cursorAdj->id);
@@ -122,19 +136,28 @@ void imprimeLista(Vertice *lista){
 }
 
 
-/*Recebe uma lista de adj por referencia, cria um novo Adj, coloca no inicio da lista e atualiza o inicio fornecido*/
+/*Recebe uma lista de adj por referencia, cria um novo Adj, coloca no fim da lista e atualiza o inicio fornecido se necessario*/
 void pushAdj(Adj **inicio, int id) {
 
     /*aloca espaco para novo adj*/
     Adj *adjNovo = malloc(sizeof(Adj));
+    Adj *cursor = *inicio;
 
     /*coloca valor do id*/
     adjNovo->id = id;
-    /*faz novo adj apontar para o inicio da lista de adj*/
-    adjNovo->prox = *inicio;
-    /*atualiza o valor do inicio da lista*/
-    *inicio = adjNovo;
-    
+
+ 	/*coloca NULL como proximo*/
+ 	adjNovo->prox = NULL;
+
+ 	/*caso a lista esteja vazia, apenas insere*/
+ 	if (*inicio == NULL) {
+ 		*inicio = adjNovo;
+ 		return;
+ 	}
+ 	/*percorre ate o final da lista*/
+ 	while(cursor->prox != NULL) cursor = cursor->prox;
+ 	/*insere no final*/
+ 	cursor->prox = adjNovo; 
     
 
 }
@@ -181,6 +204,29 @@ void liberaListaAdj(Adj **inicio) {
 		*inicio = cursorProx;
 	}
 }
+/*Aloca espaco e coloca um vertice com o novo id no final da lista*/
+void pushVerticeNoFinal(Vertice **inicio, int id) {
+	Vertice *cursor = *inicio;
+
+    /*aloca espaco para novo vertice*/
+    Vertice *verticeNovo = malloc(sizeof(Vertice));
+
+    /*coloca valor do id e inicia os outros campos*/
+    verticeNovo->id = id;
+    verticeNovo->adj = NULL;
+    verticeNovo->qtdIncidentes = 0;
+
+    if (*inicio == NULL) {
+    	*inicio = verticeNovo;
+    	verticeNovo->prox = NULL;
+    	return;
+    }
+    /*faz novo vertice apontar para o inicio da lista de vertice*/
+    while (cursor->prox != NULL) cursor = cursor->prox;
+    verticeNovo->prox = NULL;
+    cursor->prox = verticeNovo;    
+
+}
 
 void pushVertice(Vertice **inicio, int id) {
 
@@ -194,11 +240,8 @@ void pushVertice(Vertice **inicio, int id) {
     /*faz novo vertice apontar para o inicio da lista de vertice*/
     verticeNovo->prox = *inicio;
     /*atualiza o valor do inicio da lista*/
-    *inicio = verticeNovo;
-    
-    
-
-}
+	*inicio = verticeNovo;
+} 
 
 void popVertice(Vertice **inicio, int id) {
 
@@ -256,6 +299,7 @@ void liberaListaVertice(Vertice **inicio) {
 /*Percorre o arquivo alunos.txt e povoa a lista de adjacencia*/
 int povoaLista(Vertice **lista) {
 
+    
     /*declara e inicializa variaveis a serem utilizadas*/
     FILE *arquivo = NULL;
     char linhaAtual[TAM_LINHA];
@@ -274,17 +318,11 @@ int povoaLista(Vertice **lista) {
     }
 
     /*
-    percorre o arquivo alunos.txt
-    vai de linha em linha, colocando em uma string, supondo formato nome#matricula#idAdj1#idAdj2#...#idAdjn#\n
-    percorre ate chegar a NUM_ALUNOS ou EOF (feof == 0)
+    percorre o arquivo disciplinas.txt
+    vai de linha em linha, colocando-as em uma string, supondo formato 
+    			mat_vertice#creditos#dificuldade#mat_adj1#mat_adj2#mat_adj3#...#mat_adjN#\n
+    percorre ate chegar a EOF
     a cada iteracao, aloca espaco para novo vertice e atribui a ele os valores lidos, e depois adiciona suas adjacencias
-    supoe id do aluno a partir da ordem de entrada
-
-    */
-    /*
-    no for, primeira condicao de saida para caso ocorra algum problema, exista um limite
-    segunda condicao se ja leu todos os alunos registrados
-    terceira se chegou no final do arquivo
     */
     for(i = 0;i<200 && fgets(linhaAtual, TAM_LINHA, arquivo) != NULL; i++) {
     
@@ -292,19 +330,22 @@ int povoaLista(Vertice **lista) {
 
 
 
-        /*le o id da disciplina*/
-
+        /*le a matricula da disciplina*/
 		sscanf(linhaAtual, "%d#", &idMatricula);
 
+		/*aloca espaco para o vertice inicializando a matricula*/
 		pushVertice(lista, idMatricula);
 
-		/*aumenta offset da string para andar ate o proximo valor. 1 referente ao divisor #*/
+		/*aumenta offset da string para andar ate o proximo valor. "+ 1" referente ao divisor #*/
+		/*TAM_MATRICULA eh uma constante definida no cabecalho do programa*/
         offsetLinha = TAM_MATRICULA + 1;
         /*Le a qtd de creditos*/
         sscanf(linhaAtual + offsetLinha, "%d#", &(*lista)->creditos);
+        /*aumenta offset (num_1_algarismo) + 1 (referente ao #)*/
         offsetLinha += 2;
         /*le a dificuldade*/
         sscanf(linhaAtual + offsetLinha, "%f#", &(*lista)->dificuldade);
+        /*aumenta offset (1.0 == 3) + 1 (referente ao #)*/
         offsetLinha += 4;
         /*inicializa a variavel de qtd de incidentes*/
         (*lista)->qtdIncidentes = 0;
@@ -326,5 +367,62 @@ int povoaLista(Vertice **lista) {
 
 
     }
-    return i;
+return i;
+}
+
+
+/*Faz uma copia da lista, respeitando a ordem dos vertices*/
+Vertice *copiaLista(Vertice *lista) {
+
+	Vertice *novaLista = NULL;
+	Vertice *cursor = lista;
+	Adj *cursorAdj = NULL;
+
+	while(lista != NULL) {
+		pushVerticeNoFinal(&novaLista, lista->id);
+		cursor = novaLista;
+		while(cursor->prox != NULL) cursor = cursor->prox;
+		cursor->qtdIncidentes = lista->qtdIncidentes;
+		cursor->creditos = lista->creditos;
+		cursor->dificuldade = lista->dificuldade;
+		cursor->adj = NULL;
+		cursorAdj = lista->adj;
+		while (cursorAdj != NULL) {
+			pushAdj(&cursor->adj, cursorAdj->id);
+			cursorAdj = cursorAdj->prox;
+		}
+		lista = lista->prox;
+
+	}
+	return novaLista;
+}
+
+void atualizaIncidentes(Vertice *lista) {
+
+	Vertice *cursor = lista;
+	Vertice *cursorIncremento = lista;
+	Adj *cursorAdj = NULL;
+	/*percorre cada lista de adjacencia de cada vertice.
+	para cada adjacente encontrado, volta na lista de
+	vertices incrementa o valor de qtd de incidentes*/
+	while(cursor != NULL) {
+		cursorAdj = cursor->adj;
+		/*percorre lista de adjacentes*/
+		while(cursorAdj!= NULL) {
+			/*procura o elemento incidente na lista*/
+			cursorIncremento = lista;
+			while(cursorIncremento != NULL) {
+				if(cursorIncremento->id == cursorAdj->id) {
+					cursorIncremento->qtdIncidentes += 1;
+					break;
+				}
+				cursorIncremento = cursorIncremento->prox;
+			}
+			cursorAdj = cursorAdj->prox;
+
+		}
+		cursor = cursor->prox;
+
+	}
+
 }
