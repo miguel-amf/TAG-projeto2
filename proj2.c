@@ -81,6 +81,9 @@ Vertice *organizacaoTopologica(Vertice *);
 Vertice *listaAdjacenciaParaIncidencia(Vertice *);
 Vertice *caminhoCritico(Vertice *);
 
+/*Funcoes auxiliares*/
+char *idParaNome(int);
+
 /*
 ESTRUTURA DE DADOS UTILIZADA:
 LISTA DE DISCIPLINAS COM LISTA DE ADJACENCIA
@@ -98,6 +101,16 @@ LISTA DE VERTICES     LISTA ADJACENCIA
 /*FUNCAO MAIN*/
 int main () {
 
+	printf("\nola, este programa ira analisar o fluxo do curso Ciencia da Computacao Bacharelado.\n");
+	printf("para tal, o usuario ira receber na tela:\n");
+	printf("(1) todas as disciplinas e quem a tem como pre-requisito (DAG)\n");
+	printf("(2) todos os caminhos das materias e suas dificuldades, esta calculada sendo creditos*dificuldadePercebida\n");
+	printf("(3) uma lista referente a uma ordenacao topologica (baseado no algoritmo de Kahn\n");
+	printf("(4) o caminho critico, o caminho de maior dificuldade\n");
+	printf("Pressione ENTER para mostrar (1)");
+	getchar();
+	printf("Mostrando(1):\n");
+
     /*declara o ponteiro para Vertice cabeca da lista*/
     Vertice *lista = NULL;
 
@@ -105,35 +118,44 @@ int main () {
     povoaLista(&lista); /*Le o arquivo e prepara corretamente o TAD*/
 	atualizaIncidentes(lista); /*com a lista pronta, eh possivel contar as incidencias em cada vertice*/
 
-
+    /*para mostrar (1)*/
+    imprimeLista(lista); /*imprime na saida padrao o TAD para o grafo*/
+    printf("\n\n\npressione ENTER para mostrar (2)");
+    getchar();
 
     /*ETAPA DE MANIPULACAO DE DADOS*/
     Vertice *listaCopia = copiaLista(lista);
 
     Vertice *topologico = organizacaoTopologica(listaCopia);
 
+    /*caminhoCritico imprime automaticamente (2)*/
     Vertice *cCritico = caminhoCritico(lista);
-
+    printf("\n\n\npressione ENTER para mostrar (3)");
+    getchar();
 
 
     /*ETAPA DE APRESENTACAO DOS RESULTADOS*/
-    imprimeLista(lista); /*imprime na saida padrao o TAD para o grafo*/
-    printf("\nOrganizacaoTopologica: ");
+
+    /*algoritmo para mostrar (3)*/
+    printf("\nOrganizacaoTopologica: \n");
     Vertice *cursorTopologico = topologico;
     while(cursorTopologico != NULL) {
-    	printf("->%d", cursorTopologico->id);
+    	printf("-> %s ", idParaNome(cursorTopologico->id));
     	cursorTopologico = cursorTopologico->prox;
     }
+    printf("\n\n\npressione ENTER para mostrar (4)");
+    getchar();
+    /*algoritmo para mostrar (4)*/
     printf("\nCAMINHO CRITICO: (dificuldade: %f)\n", cCritico->dificuldade);
     Vertice *cursorCaminhoCritico = cCritico;
     while(cursorCaminhoCritico != NULL) {
-    	printf("->%d", cursorCaminhoCritico->id);
+    	printf("->%s", idParaNome(cursorCaminhoCritico->id));
     	cursorCaminhoCritico = cursorCaminhoCritico->prox;
     }
     
 
     /*ETAPA DE FINALIZACAO DO PROGRAMA*/
-    liberaListaVertice(&lista);     /*desaloca a memoria utilizada para Vertice *lista*/
+    liberaListaVertice(&lista);
     liberaListaVertice(&listaCopia);
     liberaListaVertice(&topologico);
     liberaListaVertice(&cCritico);
@@ -144,6 +166,7 @@ int main () {
     return 0;
 
 }
+
 
 
 Vertice *caminhoCritico(Vertice *entrada) {
@@ -201,28 +224,7 @@ Vertice *caminhoCritico(Vertice *entrada) {
 	caminhoCritico e retornara para a funcao chamadora*/
 
 	while(caminhos != NULL) {
-		/*
-		Caminhos *auxDebug = caminhos;
-		while(auxDebug != NULL){
-			printf("\nCaminho dif: %f, com vertices:\n", auxDebug->dificuldadeCaminho);
-			Vertice *auxVerticeDebug = auxDebug->vertices;
-			while(auxVerticeDebug!= NULL) {
-				printf("->%d", auxVerticeDebug->id);
-				auxVerticeDebug = auxVerticeDebug->prox;
-			}
-			auxDebug = auxDebug->prox;
-		}
-		auxDebug = caminhosFinalizados;
-		while(auxDebug!= NULL){
-			printf("\nCaminhoFinalizados dif: %f, com vertices:\n", auxDebug->dificuldadeCaminho);
-			Vertice *auxVerticeDebug = auxDebug->vertices;
-			while(auxVerticeDebug!= NULL) {
-				printf("->%d", auxVerticeDebug->id);
-				auxVerticeDebug = auxVerticeDebug->prox;
-			}
-			auxDebug = auxDebug->prox;
-		}
-		printf("\n\n\n");*/
+
 		Caminhos *caminhoVigente = caminhos;
 		Vertice *listaVertices = caminhoVigente->vertices;
 		/*procura o ultimo elemento do caminho*/
@@ -269,7 +271,7 @@ Vertice *caminhoCritico(Vertice *entrada) {
 				caminhoNovo->vertices = verticesNovo;
 
 				/*calcula a nova dificuldade*/
-				caminhoNovo->dificuldadeCaminho = caminhos->dificuldadeCaminho + ultimoVertice->dificuldade;
+				caminhoNovo->dificuldadeCaminho = caminhos->dificuldadeCaminho + ultimoVertice->dificuldade*ultimoVertice->creditos;
 
 				/*agora coloca o caminho no final da lista de caminhos*/
 				Caminhos *cursorCaminhos = caminhos;
@@ -291,22 +293,24 @@ Vertice *caminhoCritico(Vertice *entrada) {
 	}
 
 
+	/*imprime todos os caminhos encontrados e suas dificuldades*/
 	Caminhos *auxDebug = caminhosFinalizados;
+	printf("Dif.\tsequencia");
 	while(auxDebug!= NULL){
-		printf("\n(%f):", auxDebug->dificuldadeCaminho);
+		printf("\n(%.0f):", auxDebug->dificuldadeCaminho);
 		Vertice *auxVerticeDebug = auxDebug->vertices;
 		while(auxVerticeDebug!= NULL) {
-			printf("->%d", auxVerticeDebug->id);
+			printf("->%s", idParaNome(auxVerticeDebug->id));
 			auxVerticeDebug = auxVerticeDebug->prox;
 		}
 		auxDebug = auxDebug->prox;
 	}
 
 
+	/*verifica dentro dos caminhosFinalizados aquele que atingiu maior valor*/
 	Caminhos *cursorCaminhosFinalizados = caminhosFinalizados;
 	while(cursorCaminhosFinalizados != NULL) {
 		if(cursorCaminhosFinalizados->dificuldadeCaminho > maiorValor) {
-			printf("Trocando %f por %f\n", cursorCaminhosFinalizados->dificuldadeCaminho, maiorValor);
 			caminhoCritico = cursorCaminhosFinalizados->vertices;
 			maiorValor = cursorCaminhosFinalizados->dificuldadeCaminho;
 		}
@@ -317,6 +321,7 @@ Vertice *caminhoCritico(Vertice *entrada) {
 	caminhoCritico = copiaLista(caminhoCritico);
 	caminhoCritico->dificuldade = maiorValor;
 
+	/*Libera memoria de caminhosFinalizados*/
 	while(caminhosFinalizados!=NULL) {
 		Caminhos *auxFree = caminhosFinalizados->prox;
 		liberaListaVertice(&caminhosFinalizados->vertices);
@@ -413,13 +418,13 @@ void imprimeLista(Vertice *lista){
     Adj *cursorAdj = cursor->adj;
 
     while(cursor!=NULL) {
-    	printf("%d(cr=%d)(dif:%.1f)(inc=%d)", 	cursor->id, 
+    	printf("%-12s(cr=%d)(dif:%.1f)(inc=%d)", 	idParaNome(cursor->id), 
     											cursor->creditos, 
     											cursor->dificuldade,
     											cursor->qtdIncidentes);
     	cursorAdj = cursor->adj;
     	while(cursorAdj!= NULL) {
-    		printf("->%d", cursorAdj->id);
+    		printf("->%s", idParaNome(cursorAdj->id));
     		cursorAdj = cursorAdj->prox;
     	}
     	printf("\n");
@@ -720,4 +725,47 @@ void atualizaIncidentes(Vertice *lista) {
 
 	}
 
+}
+
+char *idParaNome(int id) {
+	switch(id){
+
+	case 113107: return "Algebra1"; break;
+	case 113476: return "APC"; break;
+	case 116882: return "Automatos"; break;
+	case 116378: return "BD"; break;
+	case 113034: return "C1"; break;
+	case 113042: return "C2"; break;
+	case 113417: return "CN"; break;
+	case 116351: return "CD"; break;
+	case 117951: return "Compiladores"; break;
+	case 117943: return "Comp. Exp."; break;
+	case 116441: return "ES"; break;
+	case 116319: return "ED"; break;
+	case 117960: return "FSO"; break;
+	case 113450: return "FTC"; break;
+	case 116726: return "IS"; break;
+	case 116653: return "IA"; break;
+	case 113468: return "ISC"; break;
+	case 113093: return "IAL"; break;
+	case 116343: return "LP"; break;
+	case 117366: return "LC1"; break;
+	case 117919: return "Met. Cient."; break;
+	case 116394: return "OAC"; break;
+	case 116327: return "OA"; break;
+	case 115045: return "PE"; break;
+	case 117935: return "PC"; break;
+	case 117536: return "PAA"; break;
+	case 116572: return "Redes"; break;
+	case 117927: return "Seguranca"; break;
+	case 116416: return "SI"; break;
+	case 116432: return "SB"; break;
+	case 117889: return "TP1"; break;
+	case 117897: return "TP2"; break;
+	case 117901: return "TAG"; break;
+	case 116912: return "TG1"; break;
+	case 116921: return "TG2"; break;
+	default: return ""; break;
+}
+return "";
 }
