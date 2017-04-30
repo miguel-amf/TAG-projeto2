@@ -140,16 +140,16 @@ int main () {
     printf("\nOrganizacaoTopologica: \n");
     Vertice *cursorTopologico = topologico;
     while(cursorTopologico != NULL) {
-    	printf("-> %s ", idParaNome(cursorTopologico->id));
+    	printf("-> %s(%d)", idParaNome(cursorTopologico->id), cursorTopologico->id);
     	cursorTopologico = cursorTopologico->prox;
     }
     printf("\n\n\npressione ENTER para mostrar (4)");
     getchar();
     /*algoritmo para mostrar (4)*/
-    printf("\nCAMINHO CRITICO: (dificuldade: %f)\n", cCritico->dificuldade);
+    printf("\nCAMINHO CRITICO: (dificuldade: %.0f)\n", cCritico->dificuldade);
     Vertice *cursorCaminhoCritico = cCritico;
     while(cursorCaminhoCritico != NULL) {
-    	printf("->%s", idParaNome(cursorCaminhoCritico->id));
+    	printf("->%s(%d)", idParaNome(cursorCaminhoCritico->id), cursorCaminhoCritico->id);
     	cursorCaminhoCritico = cursorCaminhoCritico->prox;
     }
     
@@ -417,8 +417,10 @@ void imprimeLista(Vertice *lista){
     Vertice *cursor = lista;
     Adj *cursorAdj = cursor->adj;
 
+    printf("Nome    Cred/dif./qtdInc.\tLista de Adjacentes\n");
     while(cursor!=NULL) {
-    	printf("%-12s(cr=%d)(dif:%.1f)(inc=%d)", 	idParaNome(cursor->id), 
+    	printf("%s(%d)\t%d/%.1f/%d\t\t", 	idParaNome(cursor->id),
+    											cursor->id,
     											cursor->creditos, 
     											cursor->dificuldade,
     											cursor->qtdIncidentes);
@@ -730,16 +732,16 @@ void atualizaIncidentes(Vertice *lista) {
 char *idParaNome(int id) {
 	switch(id){
 
-	case 113107: return "Algebra1"; break;
+	case 113107: return "Alg1"; break;
 	case 113476: return "APC"; break;
-	case 116882: return "Automatos"; break;
+	case 116882: return "Auto"; break;
 	case 116378: return "BD"; break;
 	case 113034: return "C1"; break;
 	case 113042: return "C2"; break;
 	case 113417: return "CN"; break;
 	case 116351: return "CD"; break;
-	case 117951: return "Compiladores"; break;
-	case 117943: return "Comp. Exp."; break;
+	case 117951: return "Comp"; break;
+	case 117943: return "C.Exp."; break;
 	case 116441: return "ES"; break;
 	case 116319: return "ED"; break;
 	case 117960: return "FSO"; break;
@@ -750,14 +752,14 @@ char *idParaNome(int id) {
 	case 113093: return "IAL"; break;
 	case 116343: return "LP"; break;
 	case 117366: return "LC1"; break;
-	case 117919: return "Met. Cient."; break;
+	case 117919: return "M.Cien."; break;
 	case 116394: return "OAC"; break;
 	case 116327: return "OA"; break;
 	case 115045: return "PE"; break;
 	case 117935: return "PC"; break;
 	case 117536: return "PAA"; break;
 	case 116572: return "Redes"; break;
-	case 117927: return "Seguranca"; break;
+	case 117927: return "Seg"; break;
 	case 116416: return "SI"; break;
 	case 116432: return "SB"; break;
 	case 117889: return "TP1"; break;
