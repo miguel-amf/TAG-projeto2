@@ -40,6 +40,15 @@ typedef struct Vertice
 
 } Vertice;
 
+/*lista de caminhos, caminhos eh uma sequencia de Vertices*/
+typedef struct Caminhos
+{
+	struct Vertice *caminho;
+	float dificuldadeCaminho;
+	struct Caminhos *prox;
+
+} Caminhos; 
+
 
 
 
@@ -60,6 +69,7 @@ void liberaListaAdj(Adj **);
 
 /*Funcoes de push e pop de vertices*/
 void pushVertice(Vertice **, int);
+void pushVerticeNoFinal(Vertice **, int);
 void popVertice(Vertice **, int);
 void liberaListaVertice(Vertice **);
 
@@ -67,6 +77,8 @@ void liberaListaVertice(Vertice **);
 void imprimeLista(Vertice *);
 Vertice *copiaLista(Vertice *);
 void atualizaIncidentes(Vertice *);
+Vertice *organizacaoTopologica(Vertice *);
+Vertice *listaAdjacenciaParaIncidencia(Vertice *);
 
 /*
 ESTRUTURA DE DADOS UTILIZADA:
@@ -93,12 +105,31 @@ int main () {
     povoaLista(&lista); /*Le o arquivo e prepara corretamente o TAD*/
 	atualizaIncidentes(lista); /*com a lista pronta, eh possivel contar as incidencias em cada vertice*/
 
+
+
     /*ETAPA DE MANIPULACAO DE DADOS*/
     Vertice *listaCopia = copiaLista(lista);
+
+    Vertice *topologico = organizacaoTopologica(listaCopia);
+
+    Vertice *listaIncidencia = listaAdjacenciaParaIncidencia(lista);
+
+
+
+
+
 
 
     /*ETAPA DE APRESENTACAO DOS RESULTADOS*/
     imprimeLista(lista); /*imprime na saida padrao o TAD para o grafo*/
+    printf("\n\n");
+    imprimeLista(listaIncidencia);
+    printf("\nOrganizacaoTopologica: ");
+    Vertice *cursorTopologico = topologico;
+    while(cursorTopologico != NULL) {
+    	printf("->%d", cursorTopologico->id);
+    	cursorTopologico = cursorTopologico->prox;
+    }
     
 
     /*ETAPA DE FINALIZACAO DO PROGRAMA*/
@@ -109,9 +140,111 @@ int main () {
 
 }
 
-void organizacaoTopologica(Vertice *lista) {
+
+Vertice *caminhoCritico(Vertice *entrada) {
 
 
+	Caminhos *caminhos = NULL;
+	Caminhos *caminhosFinalizados = NULL; /*caminhos finalizados armazena os caminhos que chegaram ao final*/
+	Vertice *caminhoCritico = NULL;
+
+	Vertice *cursor = entrada;
+	/*coloca todos os vertices sem incidencia como possiveis caminhos*/
+	while(cursor != NULL) {
+		if(cursor->qtdIncidentes ==  0) {
+			if(caminhos == NULL ) {
+				caminhos = malloc(sizeof(Caminhos));
+				caminhos->prox = NULL;
+				caminhos->dificuldadeCaminho = cursor->creditos*cursor->dificuldade;
+				pushVerticeNoFinal(&caminhos->caminho, cursor->id);
+			} else {
+				Vertice *aux = caminhos;
+				
+			}
+		}
+	}
+
+	return caminhoCritico;
+}
+
+Vertice *listaAdjacenciaParaIncidencia(Vertice *entrada) {
+	Vertice *adjacencia = entrada;
+	Vertice *incidencia = copiaLista(adjacencia);
+	Vertice *cursor = incidencia;
+
+	/*limpa a lista de adjacencia da incidencia para
+	poder povoar a lista com as incidencias*/
+	while(cursor!=NULL) {
+		liberaListaAdj(&cursor->adj);
+		cursor = cursor->prox;
+	}
+	/*percorre lista de vertices. para cada adjacencia
+	encontrada, coloca na lista de vertices incidencia
+	o novo no*/
+	while(adjacencia != NULL) {
+		Adj *cursorAdj = adjacencia->adj;
+		/*percorre lista de adjacencia de cada vertice*/
+		while (cursorAdj!=NULL) {
+			/*percorre a lista de incidencia a procura do adjacente*/
+			Vertice *cursorInsereIncidente = incidencia;
+			while(cursorInsereIncidente != NULL) {
+				if (cursorInsereIncidente->id == cursorAdj->id) {
+					pushAdj(&cursorInsereIncidente->adj, cursorAdj->id);
+					break;
+				}
+				cursorInsereIncidente = cursorInsereIncidente->prox;
+			}
+			cursorAdj = cursorAdj->prox;
+		}
+		adjacencia = adjacencia->prox;
+	}
+	return incidencia;
+}
+/*
+Algoritmo de Kahn para organizacao topologica
+faz uma tabela de incidencias, quem possuir zero
+incidentes eh removido da lista e seus adjacentes
+possuem suas contagens de incidentes decrementadas em 1*/
+Vertice *organizacaoTopologica(Vertice *entrada) {
+
+	Vertice *lista = copiaLista(entrada);
+
+	Vertice *cursor = lista;
+	Vertice *cursorEncontraIncidentes = lista;
+	Vertice *organizado = NULL;
+	int matAdjacente = 0;
+	Adj *cursorAdj = NULL;
+	/*Percorre Procurando por incidentes == 0 */
+	while(lista != NULL) {
+		cursor = lista;
+		while (cursor!= NULL) {
+			/*verifica se o vertice nao tem setas apontando para ele*/
+			if(cursor->qtdIncidentes == 0) {
+				/*percorre a lista de adjacencias deste vertice*/
+				cursorAdj = cursor->adj;
+				while(cursorAdj != NULL) {
+					/*percorre a lista de vertices procurando pelo vertice com a matricula da lista de adjacencia*/
+					matAdjacente = cursorAdj->id;
+					cursorEncontraIncidentes = lista; /*volta o cursor para o inicio da lista*/
+					while (cursorEncontraIncidentes != NULL) {
+						if(cursorEncontraIncidentes->id == matAdjacente) {
+							cursorEncontraIncidentes->qtdIncidentes -= 1;
+							break;
+						}
+						cursorEncontraIncidentes = cursorEncontraIncidentes->prox; /*anda para o prox da lista*/
+					}
+					if (cursorEncontraIncidentes == NULL) 
+					printf("\nATENCAO: cursorEncontraIncidentes CHEGOU AO FINAL E NAO ENCONTROU ADJ");
+					cursorAdj = cursorAdj->prox; /*anda para o prox da lista*/
+				}
+				pushVerticeNoFinal(&organizado, cursor->id);/*coloca no final da organizacao o vertice que pode ser retirado*/
+				popVertice(&lista, cursor->id); /*tira da lista o vertice colocado*/
+			}
+
+			cursor = cursor->prox; /*anda para o prox da lista*/
+		}
+	}
+	return organizado;
 }
 
 void imprimeLista(Vertice *lista){
@@ -215,6 +348,8 @@ void pushVerticeNoFinal(Vertice **inicio, int id) {
     verticeNovo->id = id;
     verticeNovo->adj = NULL;
     verticeNovo->qtdIncidentes = 0;
+    verticeNovo->creditos = 0;
+    verticeNovo->dificuldade = 0;
 
     if (*inicio == NULL) {
     	*inicio = verticeNovo;
